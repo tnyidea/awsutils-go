@@ -30,12 +30,12 @@ type S3Object struct {
 	LastModified time.Time `json:"lastModified"`
 }
 
-func NewS3Object(bucket string, objectKey string, serviceKey string) (S3Object, error) {
+func NewS3Object(bucket string, objectKey string, serviceKey string) S3Object {
 	return S3Object{
 		ServiceKey: serviceKey,
 		Bucket:     bucket,
 		ObjectKey:  objectKey,
-	}, nil
+	}
 }
 
 func NewS3ObjectFromS3Url(url string, serviceKey string) (S3Object, error) {
@@ -194,7 +194,7 @@ func (s *S3Object) Delete() error {
 }
 
 func (s *S3Object) DownloadBytes() ([]byte, error) {
-	awsSession, err := aws.NewAWSSession(s.ServiceKey)
+	awsSession, err := awsutils.NewAWSSession(s.ServiceKey)
 	if err != nil {
 		return nil, err
 	}
@@ -214,7 +214,7 @@ func (s *S3Object) DownloadBytes() ([]byte, error) {
 }
 
 func (s *S3Object) DownloadReader() (io.ReadCloser, error) {
-	awsSession, err := aws.NewAWSSession(s.ServiceKey)
+	awsSession, err := awsutils.NewAWSSession(s.ServiceKey)
 	if err != nil {
 		return nil, err
 	}
@@ -482,7 +482,7 @@ func (s *S3Object) Rename(targetObjectKey string) error {
 }
 
 func (s *S3Object) UploadBytes(uploadBytes []byte) error {
-	awsSession, err := aws.NewAWSSession(s.ServiceKey)
+	awsSession, err := awsutils.NewAWSSession(s.ServiceKey)
 	if err != nil {
 		return err
 	}
@@ -500,7 +500,7 @@ func (s *S3Object) UploadBytes(uploadBytes []byte) error {
 }
 
 func (s *S3Object) UploadReader(reader io.ReadCloser) error {
-	awsSession, err := aws.NewAWSSession(s.ServiceKey)
+	awsSession, err := awsutils.NewAWSSession(s.ServiceKey)
 	if err != nil {
 		return err
 	}
