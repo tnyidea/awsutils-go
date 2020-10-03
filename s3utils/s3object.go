@@ -233,10 +233,10 @@ func (s *S3Object) DownloadReader() (io.ReadCloser, error) {
 	return ioutil.NopCloser(bytes.NewReader(s3DownloadBuffer.Bytes())), nil
 }
 
-func (s *S3Object) ListObject() error {
+func (s *S3Object) Exists() (bool, error) {
 	s3Session, err := NewS3Session(s.ServiceKey)
 	if err != nil {
-		return nil
+		return false, err
 	}
 
 	output, err := s3Session.ListObjectsV2(&s3.ListObjectsV2Input{
@@ -246,11 +246,11 @@ func (s *S3Object) ListObject() error {
 		Prefix:     aws.String(s.ObjectKey),
 	})
 	if err != nil {
-		return err
+		return false, err
 	}
 
 	if len(output.Contents) != 1 {
-		return errors.New("s3Object not found")
+		return false, nil
 	}
 	object := output.Contents[0]
 
@@ -260,6 +260,18 @@ func (s *S3Object) ListObject() error {
 	s.StorageClass = *object.StorageClass
 	s.LastModified = *object.LastModified
 
+	return true, nil
+}
+
+func (s *S3Object) ListObject() error {
+	exists, err := s.Exists()
+	if err != nil {
+		return err
+	}
+
+	if !exists {
+		return errors.New("s3Object not found")
+	}
 	return nil
 }
 
