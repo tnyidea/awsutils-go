@@ -63,7 +63,7 @@ func NewS3ObjectFromS3Url(url string, serviceKey string) (S3Object, error) {
 }
 
 func (s *S3Object) Bytes() []byte {
-	b, _ := json.MarshalIndent(s, "", "    ")
+	b, _ := json.Marshal(s)
 	return b
 }
 
