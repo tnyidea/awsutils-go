@@ -28,7 +28,6 @@ type S3Object struct {
 	Exists       bool      `json:"exists"`
 	ETag         string    `json:"etag"`
 	Size         int64     `json:"size"`
-	Owner        string    `json:"owner"`
 	StorageClass string    `json:"storageClass"`
 	LastModified time.Time `json:"lastModified"`
 }
@@ -119,7 +118,7 @@ func (s *S3Object) getBucketLocation() error {
 		return err
 	}
 
-	s.Region = output.String()
+	s.Region = strings.TrimSpace(strings.Split(output.String(), ":")[1])
 	return nil
 }
 
