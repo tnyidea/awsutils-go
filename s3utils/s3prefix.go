@@ -130,7 +130,6 @@ func (s *S3ObjectPrefix) ListObjects() ([]S3Object, error) {
 					ObjectKey:    *pageContents.Key,
 					ETag:         strings.ReplaceAll(*page.Contents[i].ETag, "\"", ""),
 					Size:         *pageContents.Size,
-					Owner:        *pageContents.Owner.DisplayName,
 					StorageClass: *pageContents.StorageClass,
 					LastModified: *pageContents.LastModified,
 				})
@@ -181,7 +180,6 @@ func (s *S3ObjectPrefix) ListObjectsAfterTime(afterTime time.Time) ([]S3Object, 
 						ObjectKey:    *pageContents.Key,
 						ETag:         strings.ReplaceAll(*page.Contents[i].ETag, "\"", ""),
 						Size:         *pageContents.Size,
-						Owner:        *pageContents.Owner.DisplayName,
 						StorageClass: *pageContents.StorageClass,
 						LastModified: *pageContents.LastModified,
 					})
@@ -234,7 +232,6 @@ func (s *S3ObjectPrefix) ListObjectsBeforeTime(beforeTime time.Time) ([]S3Object
 						ObjectKey:    *pageContents.Key,
 						ETag:         strings.ReplaceAll(*page.Contents[i].ETag, "\"", ""),
 						Size:         *pageContents.Size,
-						Owner:        *pageContents.Owner.DisplayName,
 						StorageClass: *pageContents.StorageClass,
 						LastModified: *pageContents.LastModified,
 					})
@@ -286,7 +283,6 @@ func (s *S3ObjectPrefix) ListObjectsBetweenTimes(afterTime time.Time, beforeTime
 						ObjectKey:    *pageContents.Key,
 						ETag:         strings.ReplaceAll(*page.Contents[i].ETag, "\"", ""),
 						Size:         *pageContents.Size,
-						Owner:        *pageContents.Owner.DisplayName,
 						StorageClass: *pageContents.StorageClass,
 						LastModified: *pageContents.LastModified,
 					})
