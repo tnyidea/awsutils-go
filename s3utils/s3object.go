@@ -22,6 +22,7 @@ import (
 
 type S3Object struct {
 	ServiceKey   string    `json:"-"` // Should be private for output
+	Region       string    `json:"region"`
 	Bucket       string    `json:"bucket"`
 	ObjectKey    string    `json:"objectKey"`
 	Exists       bool      `json:"exists"`
@@ -33,12 +34,19 @@ type S3Object struct {
 }
 
 func NewS3Object(bucket string, objectKey string, serviceKey string) (S3Object, error) {
+
 	s3Object := S3Object{
 		ServiceKey: serviceKey,
 		Bucket:     bucket,
 		ObjectKey:  objectKey,
 	}
+
 	err := s3Object.listObjectV2()
+	if err != nil {
+		return S3Object{}, err
+	}
+
+	err = s3Object.GetBucketLocation()
 	if err != nil {
 		return S3Object{}, err
 	}
@@ -82,6 +90,23 @@ func (s *S3Object) S3Url() (string, error) {
 	}
 
 	return "s3://" + s.Bucket + "/" + s.ObjectKey, nil
+}
+
+func (s *S3Object) GetBucketLocation() error {
+	s3Session, err := NewS3Session(s.ServiceKey)
+	if err != nil {
+		return err
+	}
+
+	output, err := s3Session.GetBucketLocation(&s3.GetBucketLocationInput{
+		Bucket: aws.String(s.Bucket),
+	})
+	if err != nil {
+		return err
+	}
+
+	s.Region = output.String()
+	return nil
 }
 
 func (s *S3Object) listObjectV2() error {
