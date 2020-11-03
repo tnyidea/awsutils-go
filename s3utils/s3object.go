@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 	"github.com/tnyidea/awsutils-go/awsutils"
@@ -23,6 +24,7 @@ type S3Object struct {
 	ServiceKey   string    `json:"-"` // Should be private for output
 	Bucket       string    `json:"bucket"`
 	ObjectKey    string    `json:"objectKey"`
+	Exists       bool      `json:"exists"`
 	ETag         string    `json:"etag"`
 	Size         int64     `json:"size"`
 	Owner        string    `json:"owner"`
@@ -45,12 +47,7 @@ func NewS3Object(bucket string, objectKey string, serviceKey string) (S3Object, 
 }
 
 func NewS3ObjectFromS3Url(url string, serviceKey string) (S3Object, error) {
-	tokens := strings.Split(serviceKey, ":")
-	if len(tokens) != 3 {
-		return S3Object{}, errors.New("invalid service key format")
-	}
-
-	tokens = strings.Split(url, "//")
+	tokens := strings.Split(url, "//")
 	if tokens[0] != "s3:" {
 		return S3Object{}, errors.New("invalid S3 URL: invalid protocol '" + tokens[0] +
 			"'. S3 URL Must be in the form of s3://bucket_name/object_key")
@@ -100,6 +97,13 @@ func (s *S3Object) listObjectV2() error {
 		Prefix:     aws.String(s.ObjectKey),
 	})
 	if err != nil {
+		if awsError, defined := err.(awserr.Error); defined {
+			code := awsError.Code()
+			if code == s3.ErrCodeNoSuchBucket || code == s3.ErrCodeNoSuchKey {
+				s.Exists = false
+				return nil
+			}
+		}
 		return err
 	}
 
@@ -117,7 +121,6 @@ func (s *S3Object) listObjectV2() error {
 	return nil
 }
 
-// S3 Operations
 func (s *S3Object) Copy(target S3Object) error {
 	s3Session, err := NewS3Session(s.ServiceKey)
 	if err != nil {
