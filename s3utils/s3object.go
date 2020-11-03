@@ -146,7 +146,7 @@ func (s *S3Object) listObjectV2() error {
 
 	s.ETag = strings.ReplaceAll(*object.ETag, "\"", "")
 	s.Size = *object.Size
-	s.Owner = *object.Owner.DisplayName
+	// s.Owner = *object.Owner.DisplayName
 	s.StorageClass = *object.StorageClass
 	s.LastModified = *object.LastModified
 
