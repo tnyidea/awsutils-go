@@ -40,7 +40,9 @@ func TestS3Copy(t *testing.T) {
 		t.FailNow()
 	}
 
-	err = s3Object.Copy(targetBucket, targetObjectKey)
+	targetS3Object := s3utils.NewS3Object(targetBucket, targetObjectKey, serviceKey)
+
+	err = s3Object.Copy(targetS3Object)
 	if err != nil {
 		log.Println(err)
 		t.FailNow()
@@ -48,11 +50,7 @@ func TestS3Copy(t *testing.T) {
 }
 
 func TestS3ListObjects(t *testing.T) {
-	s3Object, err := s3utils.NewS3Object(sourceObjectKey, sourceObjectKey, serviceKey)
-	if err != nil {
-		log.Println(err)
-		t.FailNow()
-	}
+	s3Object := s3utils.NewS3Object(sourceObjectKey, sourceObjectKey, serviceKey)
 
 	objectList, err := s3Object.ListObjects()
 	if err != nil {
@@ -72,16 +70,12 @@ func TestRename(t *testing.T) {
 	decodedObjectKey, _ := url.QueryUnescape(testObjectKey)
 	log.Println(decodedObjectKey)
 
-	s3Object, err := s3utils.NewS3Object(sourceBucket, decodedObjectKey, serviceKey)
-	if err != nil {
-		log.Println(err)
-		t.FailNow()
-	}
+	s3Object := s3utils.NewS3Object(sourceBucket, decodedObjectKey, serviceKey)
 	log.Println(s3Object)
 
 	newName := strings.ReplaceAll(decodedObjectKey, " ", "_")
 	log.Println(newName)
-	err = s3Object.Rename(newName)
+	err := s3Object.Rename(newName)
 	if err != nil {
 		log.Println(err)
 		t.FailNow()
@@ -89,14 +83,11 @@ func TestRename(t *testing.T) {
 }
 
 func TestGetObject(t *testing.T) {
-	s3Object, err := s3utils.NewS3Object(sourceBucket, sourceObjectKey, serviceKey)
-	if err != nil {
-		log.Println(err)
-		t.FailNow()
-	}
+	s3Object := s3utils.NewS3Object(sourceBucket, sourceObjectKey, serviceKey)
 
 	//_, _ = s3Object.GetObject()
-	err = s3Object.MultipartCopy(targetBucket, targetObjectKey)
+	targetS3Object := s3utils.NewS3Object(targetBucket, targetObjectKey, serviceKey)
+	err := s3Object.MultipartCopy(targetS3Object)
 	if err != nil {
 		log.Println(err)
 		t.FailNow()
