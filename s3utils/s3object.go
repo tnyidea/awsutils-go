@@ -41,13 +41,27 @@ func NewS3Object(bucket string, objectKey string, serviceKey string) (S3Object, 
 		ObjectKey:  objectKey,
 	}
 
-	err := s3Object.listObjectV2()
+	err := s3Object.getBucketLocation()
 	if err != nil {
+		if awsError, defined := err.(awserr.Error); defined {
+			code := awsError.Code()
+			if code == s3.ErrCodeNoSuchBucket {
+				s3Object.Exists = false
+				return s3Object, nil
+			}
+		}
 		return S3Object{}, err
 	}
 
-	err = s3Object.GetBucketLocation()
+	err = s3Object.listObjectV2()
 	if err != nil {
+		if awsError, defined := err.(awserr.Error); defined {
+			code := awsError.Code()
+			if code == s3.ErrCodeNoSuchKey {
+				s3Object.Exists = false
+				return s3Object, nil
+			}
+		}
 		return S3Object{}, err
 	}
 
@@ -92,7 +106,7 @@ func (s *S3Object) S3Url() (string, error) {
 	return "s3://" + s.Bucket + "/" + s.ObjectKey, nil
 }
 
-func (s *S3Object) GetBucketLocation() error {
+func (s *S3Object) getBucketLocation() error {
 	s3Session, err := NewS3Session(s.ServiceKey)
 	if err != nil {
 		return err
@@ -122,13 +136,6 @@ func (s *S3Object) listObjectV2() error {
 		Prefix:     aws.String(s.ObjectKey),
 	})
 	if err != nil {
-		if awsError, defined := err.(awserr.Error); defined {
-			code := awsError.Code()
-			if code == s3.ErrCodeNoSuchBucket || code == s3.ErrCodeNoSuchKey {
-				s.Exists = false
-				return nil
-			}
-		}
 		return err
 	}
 
