@@ -118,7 +118,7 @@ func (s *S3Object) getBucketLocation() error {
 		return err
 	}
 
-	s.Region = strings.TrimSpace(strings.Split(output.String(), ":")[1])
+	s.Region = strings.Trim(strings.Split(output.String(), ":")[1], "\"\n ")
 	return nil
 }
 
