@@ -161,7 +161,7 @@ func (s *S3Object) Copy(target S3Object) error {
 func (s *S3Object) MultipartCopy(target S3Object) error {
 	source := s
 	if source.Region != target.Region {
-		return s.MultipartCopyV2(target)
+		return s.crossRegionMultipartCopy(target)
 	}
 
 	s3Session, err := NewS3Session(s.ServiceKey)
@@ -178,7 +178,8 @@ func (s *S3Object) MultipartCopy(target S3Object) error {
 	}
 
 	sourceObjectSize := *sourceHeadObjectResult.ContentLength
-	partSize := int64(math.Pow(1024, 3)) // 1 GB
+	// partSize := int64(math.Pow(1024, 3)) // 1 GB
+	partSize := int64(math.Pow(1024, 2) * 100) // 100 MB
 	partNumber := int64(1)
 
 	uploader, err := s3Session.CreateMultipartUpload(&s3.CreateMultipartUploadInput{
@@ -234,20 +235,16 @@ func (s *S3Object) MultipartCopy(target S3Object) error {
 	return nil
 }
 
-func (s *S3Object) MultipartCopyV2(target S3Object) error {
+func (s *S3Object) crossRegionMultipartCopy(target S3Object) error {
 	source := s
 
 	sourceSession, err := NewS3Session(s.ServiceKey)
 	if err != nil {
 		return err
 	}
-	targetSession := sourceSession
-	if s.Region != target.Region {
-		s3Session, err := NewS3Session(target.ServiceKey)
-		if err != nil {
-			return err
-		}
-		targetSession = s3Session
+	targetSession, err := NewS3Session(target.ServiceKey)
+	if err != nil {
+		return err
 	}
 
 	sourceHeadObjectResult, err := sourceSession.HeadObject(&s3.HeadObjectInput{
@@ -259,7 +256,8 @@ func (s *S3Object) MultipartCopyV2(target S3Object) error {
 	}
 
 	sourceObjectSize := *sourceHeadObjectResult.ContentLength
-	partSize := int64(math.Pow(1024, 3)) // 1 GB
+	// partSize := int64(math.Pow(1024, 3)) // 1 GB
+	partSize := int64(math.Pow(1024, 2) * 100) // 100 MB
 	partNumber := int64(1)
 
 	downloader := s3manager.NewDownloaderWithClient(sourceSession,
