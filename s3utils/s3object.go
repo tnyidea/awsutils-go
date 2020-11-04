@@ -52,6 +52,7 @@ func NewS3Object(bucket string, objectKey string, serviceKey string) (S3Object, 
 		}
 		return S3Object{}, err
 	}
+	log.Println(&s3Object)
 
 	err = s3Object.listObjectV2()
 	if err != nil {
