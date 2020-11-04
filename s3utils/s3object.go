@@ -177,14 +177,16 @@ func (s *S3Object) Copy(target S3Object) error {
 }
 
 func (s *S3Object) MultipartCopy(target S3Object) error {
+	source := s
+
 	s3Session, err := NewS3Session(s.ServiceKey)
 	if err != nil {
 		return err
 	}
 
 	headObjectResult, err := s3Session.HeadObject(&s3.HeadObjectInput{
-		Bucket: aws.String(s.Bucket),
-		Key:    aws.String(s.ObjectKey),
+		Bucket: aws.String(source.Bucket),
+		Key:    aws.String(source.ObjectKey),
 	})
 	if err != nil {
 		return err
@@ -213,10 +215,160 @@ func (s *S3Object) MultipartCopy(target S3Object) error {
 		log.Println("Copying Part Number", partNumber, ": Byte Range:", byteRangeString)
 
 		// Copy this part
-		queryEscapeObjectKeyBug := url.QueryEscape(s.ObjectKey) // THERE IS A WEIRD BUG THAT UPLOAD PART COPY REQUIRES THIS
+		queryEscapeObjectKeyBug := url.QueryEscape(source.ObjectKey) // THERE IS A WEIRD BUG THAT UPLOAD PART COPY REQUIRES THIS
 		partResult, err := s3Session.UploadPartCopy(&s3.UploadPartCopyInput{
 			Bucket:          aws.String(target.Bucket),
-			CopySource:      aws.String("/" + s.Bucket + "/" + queryEscapeObjectKeyBug),
+			CopySource:      aws.String("/" + source.Bucket + "/" + queryEscapeObjectKeyBug),
+			CopySourceRange: aws.String(byteRangeString),
+			Key:             aws.String(target.ObjectKey),
+			PartNumber:      aws.Int64(partNumber),
+			UploadId:        upload.UploadId,
+		})
+		if err != nil {
+			return err
+		}
+
+		completedParts = append(completedParts, &s3.CompletedPart{
+			ETag:       partResult.CopyPartResult.ETag,
+			PartNumber: aws.Int64(partNumber),
+		})
+		partNumber++
+	}
+
+	_, err = s3Session.CompleteMultipartUpload(&s3.CompleteMultipartUploadInput{
+		Bucket: aws.String(target.Bucket),
+		Key:    aws.String(target.ObjectKey),
+		MultipartUpload: &s3.CompletedMultipartUpload{
+			Parts: completedParts,
+		},
+		UploadId: upload.UploadId,
+	})
+	if err != nil {
+		return err
+	}
+
+	log.Println("==Multipart Copy Complete==")
+	return nil
+}
+
+func (s *S3Object) MultipartPull(source S3Object) error {
+	target := s
+
+	s3Session, err := NewS3Session(s.ServiceKey)
+	if err != nil {
+		return err
+	}
+
+	headObjectResult, err := s3Session.HeadObject(&s3.HeadObjectInput{
+		Bucket: aws.String(source.Bucket),
+		Key:    aws.String(source.ObjectKey),
+	})
+	if err != nil {
+		return err
+	}
+
+	upload, err := s3Session.CreateMultipartUpload(&s3.CreateMultipartUploadInput{
+		Bucket: aws.String(target.Bucket),
+		Key:    aws.String(target.ObjectKey),
+	})
+	if err != nil {
+		return err
+	}
+
+	sourceObjectSize := *headObjectResult.ContentLength
+	partSize := int64(math.Pow(1024, 3)) // 1 GB
+	partNumber := int64(1)
+	var completedParts []*s3.CompletedPart
+
+	log.Println("==Starting Multipart Copy==")
+	log.Println("Source File Size:", sourceObjectSize)
+	log.Println("Part Size:", partSize)
+
+	for bytePosition := int64(0); bytePosition < sourceObjectSize; bytePosition += partSize {
+		lastByte := int64(math.Min(float64(bytePosition+partSize-1), float64(sourceObjectSize-1)))
+		byteRangeString := "bytes=" + strconv.FormatInt(bytePosition, 10) + "-" + strconv.FormatInt(lastByte, 10)
+		log.Println("Copying Part Number", partNumber, ": Byte Range:", byteRangeString)
+
+		// Copy this part
+		queryEscapeObjectKeyBug := url.QueryEscape(source.ObjectKey) // THERE IS A WEIRD BUG THAT UPLOAD PART COPY REQUIRES THIS
+		partResult, err := s3Session.UploadPartCopy(&s3.UploadPartCopyInput{
+			Bucket:          aws.String(target.Bucket),
+			CopySource:      aws.String("/" + source.Bucket + "/" + queryEscapeObjectKeyBug),
+			CopySourceRange: aws.String(byteRangeString),
+			Key:             aws.String(target.ObjectKey),
+			PartNumber:      aws.Int64(partNumber),
+			UploadId:        upload.UploadId,
+		})
+		if err != nil {
+			return err
+		}
+
+		completedParts = append(completedParts, &s3.CompletedPart{
+			ETag:       partResult.CopyPartResult.ETag,
+			PartNumber: aws.Int64(partNumber),
+		})
+		partNumber++
+	}
+
+	_, err = s3Session.CompleteMultipartUpload(&s3.CompleteMultipartUploadInput{
+		Bucket: aws.String(target.Bucket),
+		Key:    aws.String(target.ObjectKey),
+		MultipartUpload: &s3.CompletedMultipartUpload{
+			Parts: completedParts,
+		},
+		UploadId: upload.UploadId,
+	})
+	if err != nil {
+		return err
+	}
+
+	log.Println("==Multipart Copy Complete==")
+	return nil
+}
+
+func (s *S3Object) MultipartPush(target S3Object) error {
+	source := s
+
+	s3Session, err := NewS3Session(s.ServiceKey)
+	if err != nil {
+		return err
+	}
+
+	headObjectResult, err := s3Session.HeadObject(&s3.HeadObjectInput{
+		Bucket: aws.String(source.Bucket),
+		Key:    aws.String(source.ObjectKey),
+	})
+	if err != nil {
+		return err
+	}
+
+	upload, err := s3Session.CreateMultipartUpload(&s3.CreateMultipartUploadInput{
+		Bucket: aws.String(target.Bucket),
+		Key:    aws.String(target.ObjectKey),
+	})
+	if err != nil {
+		return err
+	}
+
+	sourceObjectSize := *headObjectResult.ContentLength
+	partSize := int64(math.Pow(1024, 3)) // 1 GB
+	partNumber := int64(1)
+	var completedParts []*s3.CompletedPart
+
+	log.Println("==Starting Multipart Copy==")
+	log.Println("Source File Size:", sourceObjectSize)
+	log.Println("Part Size:", partSize)
+
+	for bytePosition := int64(0); bytePosition < sourceObjectSize; bytePosition += partSize {
+		lastByte := int64(math.Min(float64(bytePosition+partSize-1), float64(sourceObjectSize-1)))
+		byteRangeString := "bytes=" + strconv.FormatInt(bytePosition, 10) + "-" + strconv.FormatInt(lastByte, 10)
+		log.Println("Copying Part Number", partNumber, ": Byte Range:", byteRangeString)
+
+		// Copy this part
+		queryEscapeObjectKeyBug := url.QueryEscape(source.ObjectKey) // THERE IS A WEIRD BUG THAT UPLOAD PART COPY REQUIRES THIS
+		partResult, err := s3Session.UploadPartCopy(&s3.UploadPartCopyInput{
+			Bucket:          aws.String(target.Bucket),
+			CopySource:      aws.String("/" + source.Bucket + "/" + queryEscapeObjectKeyBug),
 			CopySourceRange: aws.String(byteRangeString),
 			Key:             aws.String(target.ObjectKey),
 			PartNumber:      aws.Int64(partNumber),
