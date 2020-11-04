@@ -52,6 +52,7 @@ func NewS3Object(bucket string, objectKey string, serviceKey string) (S3Object, 
 		}
 		return S3Object{}, err
 	}
+	s3Object.localizeServiceKey()
 
 	err = s3Object.listObjectV2()
 	if err != nil {
@@ -123,12 +124,14 @@ func (s *S3Object) getBucketLocation() error {
 	return nil
 }
 
-func (s *S3Object) listObjectV2() error {
+func (s *S3Object) localizeServiceKey() {
 	tokens := strings.Split(s.ServiceKey, ":")
 	tokens[0] = s.Region
-	serviceKey := strings.Join(tokens, ":")
+	s.ServiceKey = strings.Join(tokens, ":")
+}
 
-	s3Session, err := NewS3Session(serviceKey)
+func (s *S3Object) listObjectV2() error {
+	s3Session, err := NewS3Session(s.ServiceKey)
 	if err != nil {
 		return err
 	}
