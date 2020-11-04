@@ -257,7 +257,8 @@ func (s *S3Object) crossRegionMultipartCopy(target S3Object) error {
 	}
 
 	sourceObjectSize := *sourceGetObjectResult.ContentLength
-	partSize := int64(math.Pow(1024, 3)) // 1 GB
+	// partSize := int64(math.Pow(1024, 3)) // 1 GB
+	partSize := int64(math.Pow(1024, 2) * 100)
 	partNumber := int64(1)
 
 	downloader := s3manager.NewDownloaderWithClient(sourceSession,
@@ -293,7 +294,10 @@ func (s *S3Object) crossRegionMultipartCopy(target S3Object) error {
 		if err != nil {
 			return err
 		}
+		log.Println("Downloaded Part complete")
+		log.Println("length of buffer", len(writeBuffer.Bytes()))
 
+		log.Println("Uploading Part")
 		// Copy this part
 		// queryEscapeObjectKeyBug := url.QueryEscape(source.ObjectKey) // THERE IS A WEIRD BUG THAT UPLOAD PART COPY REQUIRES THIS
 		partResult, err := targetSession.UploadPart(&s3.UploadPartInput{
@@ -314,6 +318,7 @@ func (s *S3Object) crossRegionMultipartCopy(target S3Object) error {
 		if err != nil {
 			return err
 		}
+		log.Println("Uploading Part Complete")
 
 		completedParts = append(completedParts, &s3.CompletedPart{
 			ETag:       partResult.ETag,
