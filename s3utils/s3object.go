@@ -178,8 +178,8 @@ func (s *S3Object) MultipartCopy(target S3Object) error {
 	}
 
 	sourceObjectSize := *sourceHeadObjectResult.ContentLength
-	// partSize := int64(math.Pow(1024, 3)) // 1 GB
-	partSize := int64(math.Pow(1024, 2) * 100) // 100 MB
+	// partSize := int64(math.Pow(1024, 3)) // 1 GiB
+	partSize := int64(math.Pow(1024, 2) * 100) // 100 MiB
 	partNumber := int64(1)
 
 	uploader, err := s3Session.CreateMultipartUpload(&s3.CreateMultipartUploadInput{
@@ -256,8 +256,8 @@ func (s *S3Object) crossRegionMultipartCopy(target S3Object) error {
 	}
 
 	sourceObjectSize := *sourceHeadObjectResult.ContentLength
-	// partSize := int64(math.Pow(1024, 3)) // 1 GB
-	partSize := int64(math.Pow(1024, 2) * 100) // 100 MB
+	// partSize := int64(math.Pow(1024, 3)) // 1 GiB
+	partSize := int64(math.Pow(1024, 2) * 100) // 100 MiB
 	partNumber := int64(1)
 
 	downloader := s3manager.NewDownloaderWithClient(sourceSession,
