@@ -124,20 +124,15 @@ func (s *S3Object) getBucketLocation() error {
 }
 
 func (s *S3Object) listObjectV2() error {
-	tokens := strings.Split(s.ServiceKey, ":")
-	tokens[0] = s.Region
-	serviceKey := strings.Join(tokens, ":")
-
-	s3Session, err := NewS3Session(serviceKey)
+	s3Session, err := NewS3Session(s.ServiceKey)
 	if err != nil {
 		return err
 	}
 
 	output, err := s3Session.ListObjectsV2(&s3.ListObjectsV2Input{
-		Bucket:     aws.String(s.Bucket),
-		FetchOwner: aws.Bool(true),
-		MaxKeys:    aws.Int64(1),
-		Prefix:     aws.String(s.ObjectKey),
+		Bucket:  aws.String(s.Bucket),
+		MaxKeys: aws.Int64(1),
+		Prefix:  aws.String(s.ObjectKey),
 	})
 	if err != nil {
 		return err
