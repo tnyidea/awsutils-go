@@ -6,7 +6,6 @@ import (
 	"errors"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
-	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 	"github.com/tnyidea/awsutils-go/awsutils"
@@ -41,17 +40,17 @@ func NewS3Object(bucket string, objectKey string, serviceKey string) (S3Object, 
 		Exists:     true,
 	}
 
-	err := s3Object.getBucketLocation()
+	region, err := getBucketRegion(s3Object.Bucket, serviceKey)
 	if err != nil {
 		if awsError, defined := err.(awserr.Error); defined {
-			code := awsError.Code()
-			if code == s3.ErrCodeNoSuchBucket {
+			if awsError.Code() == "NotFound" {
 				s3Object.Exists = false
 				return s3Object, nil
 			}
 		}
 		return S3Object{}, err
 	}
+	s3Object.Region = region
 	s3Object.localizeServiceKey()
 
 	err = s3Object.listObjectV2()
@@ -105,17 +104,6 @@ func (s *S3Object) S3Url() (string, error) {
 	}
 
 	return "s3://" + s.Bucket + "/" + s.ObjectKey, nil
-}
-
-func (s *S3Object) getBucketRegion() error {
-	s3Session := session.Must(session.NewSession())
-	region, err := s3manager.GetBucketRegion(aws.BackgroundContext(), s3Session, s.Bucket, strings.Split(s.ServiceKey, ":")[0])
-	if err != nil {
-		return err
-	}
-
-	s.Region = region
-	return nil
 }
 
 func (s *S3Object) localizeServiceKey() {
@@ -172,6 +160,9 @@ func (s *S3Object) Copy(target S3Object) error {
 
 func (s *S3Object) MultipartCopy(target S3Object) error {
 	source := s
+	if source.Region != target.Region {
+		return s.crossRegionMultipartCopy(target)
+	}
 
 	s3Session, err := NewS3Session(s.ServiceKey)
 	if err != nil {
@@ -257,17 +248,25 @@ func (s *S3Object) crossRegionMultipartCopy(target S3Object) error {
 		return err
 	}
 
-	headObjectResult, err := sourceSession.HeadObject(&s3.HeadObjectInput{
+	sourceGetObjectInput := &s3.GetObjectInput{
 		Bucket: aws.String(source.Bucket),
 		Key:    aws.String(source.ObjectKey),
-	})
+	}
+	sourceGetObjectResult, err := sourceSession.GetObject(sourceGetObjectInput)
 	if err != nil {
 		return err
 	}
 
-	download, err := sourceSession.GetO
+	sourceObjectSize := *sourceGetObjectResult.ContentLength
+	partSize := int64(math.Pow(1024, 3)) // 1 GB
+	partNumber := int64(1)
 
-	upload, err := targetSession.CreateMultipartUpload(&s3.CreateMultipartUploadInput{
+	downloader := s3manager.NewDownloaderWithClient(sourceSession,
+		func(d *s3manager.Downloader) {
+			d.PartSize = partSize
+		})
+
+	uploader, err := targetSession.CreateMultipartUpload(&s3.CreateMultipartUploadInput{
 		Bucket: aws.String(target.Bucket),
 		Key:    aws.String(target.ObjectKey),
 	})
@@ -275,28 +274,31 @@ func (s *S3Object) crossRegionMultipartCopy(target S3Object) error {
 		return err
 	}
 
-	sourceObjectSize := *headObjectResult.ContentLength
-	partSize := int64(math.Pow(1024, 3)) // 1 GB
-	partNumber := int64(1)
-	var completedParts []*s3.CompletedPart
-
 	log.Println("==Starting Multipart Copy==")
 	log.Println("Source File Size:", sourceObjectSize)
 	log.Println("Part Size:", partSize)
 
+	var completedParts []*s3.CompletedPart
+	var buffer []byte
+	writeBuffer := aws.NewWriteAtBuffer(buffer)
 	for bytePosition := int64(0); bytePosition < sourceObjectSize; bytePosition += partSize {
 		lastByte := int64(math.Min(float64(bytePosition+partSize-1), float64(sourceObjectSize-1)))
 		byteRangeString := "bytes=" + strconv.FormatInt(bytePosition, 10) + "-" + strconv.FormatInt(lastByte, 10)
 		log.Println("Copying Part Number", partNumber, ": Byte Range:", byteRangeString)
 
+		_, err := downloader.Download(writeBuffer, sourceGetObjectInput, nil)
+		if err != nil {
+			return err
+		}
+
 		// Copy this part
-		queryEscapeObjectKeyBug := url.QueryEscape(source.ObjectKey) // THERE IS A WEIRD BUG THAT UPLOAD PART COPY REQUIRES THIS
+		// queryEscapeObjectKeyBug := url.QueryEscape(source.ObjectKey) // THERE IS A WEIRD BUG THAT UPLOAD PART COPY REQUIRES THIS
 		partResult, err := targetSession.UploadPart(&s3.UploadPartInput{
-			Body:       nil,
+			Body:       bytes.NewReader(writeBuffer.Bytes()),
 			Bucket:     aws.String(target.Bucket),
 			Key:        aws.String(target.ObjectKey),
 			PartNumber: aws.Int64(partNumber),
-			UploadId:   upload.UploadId,
+			UploadId:   uploader.UploadId,
 		})
 		//partResult, err := targetSession.UploadPartCopy(&s3.UploadPartCopyInput{
 		//	Bucket:          aws.String(target.Bucket),
@@ -311,7 +313,7 @@ func (s *S3Object) crossRegionMultipartCopy(target S3Object) error {
 		}
 
 		completedParts = append(completedParts, &s3.CompletedPart{
-			ETag:       partResult.CopyPartResult.ETag,
+			ETag:       partResult.ETag,
 			PartNumber: aws.Int64(partNumber),
 		})
 		partNumber++
@@ -323,7 +325,7 @@ func (s *S3Object) crossRegionMultipartCopy(target S3Object) error {
 		MultipartUpload: &s3.CompletedMultipartUpload{
 			Parts: completedParts,
 		},
-		UploadId: upload.UploadId,
+		UploadId: uploader.UploadId,
 	})
 	if err != nil {
 		return err
