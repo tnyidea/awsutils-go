@@ -286,10 +286,9 @@ func (s *S3Object) crossRegionMultipartCopy(target S3Object) error {
 		log.Println("Copying Part Number", partNumber, ": Byte Range:", byteRangeString)
 
 		_, err := downloader.Download(writeBuffer, &s3.GetObjectInput{
-			Bucket:     aws.String(source.Bucket),
-			Key:        aws.String(source.ObjectKey),
-			PartNumber: aws.Int64(partNumber),
-			Range:      aws.String(byteRangeString),
+			Bucket: aws.String(source.Bucket),
+			Key:    aws.String(source.ObjectKey),
+			Range:  aws.String(byteRangeString),
 		})
 		if err != nil {
 			return err
