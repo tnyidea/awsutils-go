@@ -301,11 +301,12 @@ func (s *S3Object) crossRegionMultipartCopy(target S3Object) error {
 		// Copy this part
 		// queryEscapeObjectKeyBug := url.QueryEscape(source.ObjectKey) // THERE IS A WEIRD BUG THAT UPLOAD PART COPY REQUIRES THIS
 		partResult, err := targetSession.UploadPart(&s3.UploadPartInput{
-			Body:       bytes.NewReader(writeBuffer.Bytes()),
-			Bucket:     aws.String(target.Bucket),
-			Key:        aws.String(target.ObjectKey),
-			PartNumber: aws.Int64(partNumber),
-			UploadId:   uploader.UploadId,
+			Body:          bytes.NewReader(writeBuffer.Bytes()),
+			Bucket:        aws.String(target.Bucket),
+			ContentLength: aws.Int64(partSize),
+			Key:           aws.String(target.ObjectKey),
+			PartNumber:    aws.Int64(partNumber),
+			UploadId:      uploader.UploadId,
 		})
 		//partResult, err := targetSession.UploadPartCopy(&s3.UploadPartCopyInput{
 		//	Bucket:          aws.String(target.Bucket),
