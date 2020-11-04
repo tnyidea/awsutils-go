@@ -248,11 +248,10 @@ func (s *S3Object) crossRegionMultipartCopy(target S3Object) error {
 		return err
 	}
 
-	sourceGetObjectInput := &s3.GetObjectInput{
+	sourceGetObjectResult, err := sourceSession.HeadObject(&s3.HeadObjectInput{
 		Bucket: aws.String(source.Bucket),
 		Key:    aws.String(source.ObjectKey),
-	}
-	sourceGetObjectResult, err := sourceSession.GetObject(sourceGetObjectInput)
+	})
 	if err != nil {
 		return err
 	}
@@ -286,7 +285,12 @@ func (s *S3Object) crossRegionMultipartCopy(target S3Object) error {
 		byteRangeString := "bytes=" + strconv.FormatInt(bytePosition, 10) + "-" + strconv.FormatInt(lastByte, 10)
 		log.Println("Copying Part Number", partNumber, ": Byte Range:", byteRangeString)
 
-		_, err := downloader.Download(writeBuffer, sourceGetObjectInput, nil)
+		_, err := downloader.Download(writeBuffer, &s3.GetObjectInput{
+			Bucket:     aws.String(source.Bucket),
+			Key:        aws.String(source.ObjectKey),
+			PartNumber: aws.Int64(partNumber),
+			Range:      aws.String(byteRangeString),
+		})
 		if err != nil {
 			return err
 		}
