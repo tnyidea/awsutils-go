@@ -199,7 +199,6 @@ func (s *S3Object) MultipartCopy(target S3Object) error {
 		byteRangeString := "bytes=" + strconv.FormatInt(bytePosition, 10) + "-" + strconv.FormatInt(lastByte, 10)
 		log.Println("Copying Part Number", partNumber, ": Byte Range:", byteRangeString)
 
-		// Copy this part
 		partResult, err := s3Session.UploadPartCopy(&s3.UploadPartCopyInput{
 			Bucket:          aws.String(target.Bucket),
 			CopySource:      aws.String(url.PathEscape("/" + source.Bucket + "/" + source.ObjectKey)),
@@ -260,8 +259,7 @@ func (s *S3Object) MultipartCopyV2(target S3Object) error {
 	}
 
 	sourceObjectSize := *sourceHeadObjectResult.ContentLength
-	// partSize := int64(math.Pow(1024, 3)) // 1 GB
-	partSize := int64(math.Pow(1024, 2) * 100)
+	partSize := int64(math.Pow(1024, 3)) // 1 GB
 	partNumber := int64(1)
 
 	downloader := s3manager.NewDownloaderWithClient(sourceSession,
@@ -297,11 +295,7 @@ func (s *S3Object) MultipartCopyV2(target S3Object) error {
 		if err != nil {
 			return err
 		}
-		log.Println("Downloaded Part complete")
-		log.Println("length of buffer", len(writeBuffer.Bytes()))
 
-		log.Println("Uploading Part")
-		// Copy this part
 		partResult, err := targetSession.UploadPart(&s3.UploadPartInput{
 			Body:          bytes.NewReader(writeBuffer.Bytes()),
 			Bucket:        aws.String(target.Bucket),
@@ -310,18 +304,9 @@ func (s *S3Object) MultipartCopyV2(target S3Object) error {
 			PartNumber:    aws.Int64(partNumber),
 			UploadId:      uploader.UploadId,
 		})
-		//partResult, err := targetSession.UploadPartCopy(&s3.UploadPartCopyInput{
-		//	Bucket:          aws.String(target.Bucket),
-		//	CopySource:      aws.String("/" + source.Bucket + "/" + queryEscapeObjectKeyBug),
-		//	CopySourceRange: aws.String(byteRangeString),
-		//	Key:             aws.String(target.ObjectKey),
-		//	PartNumber:      aws.Int64(partNumber),
-		//	UploadId:        upload.UploadId,
-		//})
 		if err != nil {
 			return err
 		}
-		log.Println("Uploading Part Complete")
 
 		completedParts = append(completedParts, &s3.CompletedPart{
 			ETag:       partResult.ETag,
