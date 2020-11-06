@@ -32,6 +32,16 @@ const targetObjectKey = ""
 // testS3Url is an S3 url to an object in S3 for testing
 const testS3Url = ""
 
+func TestNewS3Object(t *testing.T) {
+	s3Object, err := s3utils.NewS3Object("bucket", "filename", serviceKey)
+	if err != nil {
+		log.Println(err)
+		t.FailNow()
+	}
+
+	log.Println(&s3Object)
+}
+
 func TestS3Copy(t *testing.T) {
 	s3Object, err := s3utils.NewS3ObjectFromS3Url(testS3Url, serviceKey)
 	if err != nil {
