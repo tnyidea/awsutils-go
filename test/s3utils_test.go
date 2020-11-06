@@ -33,7 +33,7 @@ const targetObjectKey = ""
 const testS3Url = ""
 
 func TestNewS3Object(t *testing.T) {
-	s3Object, err := s3utils.NewS3Object("bucket", "filename", serviceKey)
+	s3Object, err := s3utils.NewS3Object(sourceBucket, sourceObjectKey, serviceKey)
 	if err != nil {
 		log.Println(err)
 		t.FailNow()

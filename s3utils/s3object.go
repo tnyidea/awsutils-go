@@ -42,13 +42,7 @@ func NewS3Object(bucket string, objectKey string, serviceKey string) (S3Object, 
 
 	region, err := getBucketRegion(s3Object.Bucket, serviceKey)
 	if err != nil {
-		if awsError, defined := err.(awserr.Error); defined {
-			if awsError.Code() == "NotFound" {
-				s3Object.Exists = false
-				return s3Object, nil
-			}
-		}
-		return S3Object{}, err
+		return S3Object{}, errors.New("error locating bucket region: " + err.Error())
 	}
 	s3Object.Region = region
 	s3Object.localizeServiceKey()
@@ -127,8 +121,8 @@ func (s *S3Object) listObjectV2() error {
 		return err
 	}
 
-	if len(output.Contents) != 1 {
-		return nil
+	if *output.KeyCount != 1 {
+		return awserr.New(s3.ErrCodeNoSuchKey, "No Such Key", errors.New("no such key found"))
 	}
 	object := output.Contents[0]
 
