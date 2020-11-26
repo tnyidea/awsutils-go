@@ -154,7 +154,7 @@ func (s *S3Object) Copy(target S3Object) error {
 
 func (s *S3Object) MultipartCopy(target S3Object) error {
 	source := s
-	if source.Region != target.Region {
+	if (source.ServiceKey != target.ServiceKey) || source.Region != target.Region {
 		return s.crossRegionMultipartCopy(target)
 	}
 
